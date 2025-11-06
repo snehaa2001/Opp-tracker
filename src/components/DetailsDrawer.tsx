@@ -1,6 +1,7 @@
 import type { Application } from '../types/application';
 import { format, parseISO } from 'date-fns';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import FocusLock from 'react-focus-lock';
 
 interface DetailsDrawerProps {
   application: Application | null;
@@ -16,7 +17,13 @@ const STAGES = [
 ];
 
 export function DetailsDrawer({ application, onClose, onMarkSubmitted }: DetailsDrawerProps) {
+  const triggerRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
+    if (application && document.activeElement instanceof HTMLElement) {
+      triggerRef.current = document.activeElement;
+    }
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -31,6 +38,10 @@ export function DetailsDrawer({ application, onClose, onMarkSubmitted }: Details
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
+
+      if (triggerRef.current) {
+        triggerRef.current.focus();
+      }
     };
   }, [application, onClose]);
 
@@ -52,7 +63,8 @@ export function DetailsDrawer({ application, onClose, onMarkSubmitted }: Details
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 overflow-y-auto animate-slide-in">
+      <FocusLock returnFocus>
+        <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 overflow-y-auto animate-slide-in">
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Application Details</h2>
           <button
@@ -204,7 +216,8 @@ export function DetailsDrawer({ application, onClose, onMarkSubmitted }: Details
             </button>
           )}
         </div>
-      </div>
+        </div>
+      </FocusLock>
     </>
   );
 }

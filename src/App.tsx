@@ -4,6 +4,7 @@ import { ParameterPanel } from './components/ParameterPanel';
 import { ResultsList } from './components/ResultsList';
 import { Dashboard } from './components/Dashboard';
 import { DetailsDrawer } from './components/DetailsDrawer';
+import { MobileDrawer } from './components/MobileDrawer';
 import { Toast } from './components/Toast';
 import { DarkModeToggle } from './components/DarkModeToggle';
 import { filterApplications, getInitialFilters } from './utils/filters.tsx';
@@ -41,6 +42,7 @@ function App() {
     direction: 'asc',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [preset, setPreset] = useLocalStorage<Preset | null>('filterPreset', null);
@@ -142,31 +144,41 @@ function App() {
     setToast('Application marked as submitted');
   };
 
-  const handleExportCSV = () => {
-    const headers = ['ID', 'Title', 'Agency', 'NAICS', 'Set-Aside', 'Vehicle', 'Due Date', 'Status', '% Complete', 'Fit Score', 'Ceiling'];
-    const rows = filteredAndSorted.map(app => [
-      app.id,
-      `"${app.title}"`,
-      app.agency,
-      app.naics,
-      `"${app.setAside.join(', ')}"`,
-      app.vehicle,
-      app.dueDate,
-      app.status,
-      app.percentComplete,
-      app.fitScore,
-      app.ceiling,
-    ]);
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gsa-applications-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setToast('CSV exported successfully');
+      const headers = ['ID', 'Title', 'Agency', 'NAICS', 'Set-Aside', 'Vehicle', 'Due Date', 'Status', '% Complete', 'Fit Score', 'Ceiling'];
+      const rows = filteredAndSorted.map(app => [
+        app.id,
+        `"${app.title}"`,
+        app.agency,
+        app.naics,
+        `"${app.setAside.join(', ')}"`,
+        app.vehicle,
+        app.dueDate,
+        app.status,
+        app.percentComplete,
+        app.fitScore,
+        app.ceiling,
+      ]);
+
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gsa-applications-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setToast('CSV exported successfully');
+    } catch (error) {
+      setToast('Failed to export CSV');
+      console.error('CSV export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -189,12 +201,21 @@ function App() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleExportCSV}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1"
+                disabled={isExporting}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label={isExporting ? 'Exporting CSV...' : 'Export CSV'}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export CSV
+                {isExporting ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
+                {isExporting ? 'Exporting...' : 'Export CSV'}
               </button>
               <DarkModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
             </div>
@@ -289,70 +310,32 @@ function App() {
         </div>
       </main>
 
-      {isMobileFilterOpen && (
-        <div className="xl:hidden fixed inset-0 z-50 flex">
-          <div
-            className="fixed inset-0 bg-black/50 transition-opacity"
-            onClick={() => setIsMobileFilterOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="relative flex-1 flex flex-col bg-white dark:bg-gray-800 shadow-xl max-w-sm ml-auto animate-slide-in">
-            <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
-              <button
-                onClick={() => setIsMobileFilterOpen(false)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg transition-colors"
-                aria-label="Close filters"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
-              <ParameterPanel
-                filters={filters}
-                onFilterChange={setFilters}
-                onApply={() => {
-                  handleApply();
-                  setIsMobileFilterOpen(false);
-                }}
-                onReset={handleReset}
-                onSavePreset={handleSavePreset}
-                onLoadPreset={handleLoadPreset}
-                hasPreset={!!preset}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileDrawer
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        title="Filters"
+      >
+        <ParameterPanel
+          filters={filters}
+          onFilterChange={setFilters}
+          onApply={() => {
+            handleApply();
+            setIsMobileFilterOpen(false);
+          }}
+          onReset={handleReset}
+          onSavePreset={handleSavePreset}
+          onLoadPreset={handleLoadPreset}
+          hasPreset={!!preset}
+        />
+      </MobileDrawer>
 
-      {isMobileDashboardOpen && (
-        <div className="xl:hidden fixed inset-0 z-50 flex">
-          <div
-            className="fixed inset-0 bg-black/50 transition-opacity"
-            onClick={() => setIsMobileDashboardOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="relative flex-1 flex flex-col bg-white dark:bg-gray-800 shadow-xl max-w-sm mr-auto animate-slide-in-right">
-            <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Dashboard</h2>
-              <button
-                onClick={() => setIsMobileDashboardOpen(false)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg transition-colors"
-                aria-label="Close dashboard"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
-              <Dashboard applications={filteredAndSorted} />
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileDrawer
+        isOpen={isMobileDashboardOpen}
+        onClose={() => setIsMobileDashboardOpen(false)}
+        title="Dashboard"
+      >
+        <Dashboard applications={filteredAndSorted} />
+      </MobileDrawer>
 
       <DetailsDrawer
         application={selectedApplication}

@@ -88,8 +88,17 @@ export function ResultsList({
   const listRef = useRef<{ scrollToRow: (config: { index: number; align?: string; behavior?: string }) => void; get element(): HTMLDivElement | null } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState(600);
+  const [announcement, setAnnouncement] = useState('');
   const itemSize = useResponsiveItemSize();
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (!isLoading && applications.length > 0) {
+      setAnnouncement(`${applications.length} opportunity${applications.length === 1 ? '' : 'ies'} match the current filters.`);
+    } else if (!isLoading && applications.length === 0) {
+      setAnnouncement('No opportunities match the current filters.');
+    }
+  }, [applications.length, isLoading]);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -156,11 +165,14 @@ export function ResultsList({
 
   return (
     <div ref={containerRef} className="h-full flex flex-col overflow-hidden">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
       <div className="flex-shrink-0 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-900">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Applications</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{applications.length} opportunity{applications.length === 1 ? '' : 'ies'} match the current filters.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400" aria-hidden="true">{applications.length} opportunity{applications.length === 1 ? '' : 'ies'} match the current filters.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">Sort</span>
@@ -174,6 +186,13 @@ export function ResultsList({
                     : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                 }`}
                 aria-pressed={sortConfig.field === option.field}
+                aria-sort={
+                  sortConfig.field === option.field
+                    ? sortConfig.direction === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
               >
                 {option.label}
                 {sortConfig.field === option.field && (
@@ -181,6 +200,7 @@ export function ResultsList({
                     className={`h-3 w-3 transition-transform ${sortConfig.direction === 'asc' ? 'rotate-180' : ''}`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
+                    aria-hidden="true"
                   >
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
